@@ -27,6 +27,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  DayOfYear? _selectedDay;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,13 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDatePickerDemo() {
+    print("Building date picker with selected date: $_selectedDay");
     return Center(
       child: SizedBox(
         width: 300,
         child: DatePicker(
+          selectedDate: _selectedDay,
           hint: "Select date",
           onDaySelected: (day) {
-            // TODO:
+            print("onDaySelected(): $day");
+            setState(() {
+              _selectedDay = day;
+            });
           },
         ),
       ),

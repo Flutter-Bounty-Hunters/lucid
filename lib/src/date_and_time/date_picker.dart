@@ -120,7 +120,7 @@ class _DatePickerButtonState extends State<DatePickerButton> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    _brightness = LucidBrightness.maybeOf(context) ?? Brightness.light;
+    _brightness = LucidBrightness.of(context);
   }
 
   @override
@@ -146,6 +146,8 @@ class _DatePickerButtonState extends State<DatePickerButton> {
 
   @override
   Widget build(BuildContext context) {
+    print("Building button with selected date: ${widget.selectedDate}");
+
     return Focus(
       focusNode: _focusNode,
       child: MouseRegion(
@@ -169,7 +171,7 @@ class _DatePickerButtonState extends State<DatePickerButton> {
           }),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: _sheetCornerRadius,
               border: Border.all(color: _borderColor),
               color: _backgroundColor,
             ),
@@ -262,6 +264,8 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
 
   late FocusNode _focusNode;
 
+  var _referenceDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -273,7 +277,7 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    _brightness = LucidBrightness.maybeOf(context) ?? Brightness.light;
+    _brightness = LucidBrightness.of(context);
   }
 
   @override
@@ -297,17 +301,55 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
     super.dispose();
   }
 
+  void _goToPreviousMonth() {
+    setState(() {
+      _referenceDate = DateTime(_referenceDate.year, _referenceDate.month - 1, 1);
+    });
+  }
+
+  void _goToNextMonth() {
+    if (!_canGoToNextMonth) {
+      return;
+    }
+
+    setState(() {
+      _referenceDate = DateTime(_referenceDate.year, _referenceDate.month + 1, 1);
+    });
+  }
+
+  bool get _canGoToNextMonth {
+    final now = DateTime.now();
+    return !(_referenceDate.year >= now.year && _referenceDate.month >= now.month);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 300,
-      height: 200,
+      height: 250,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: _sheetCornerRadius,
         border: Border.all(color: _borderColor),
-        color: Colors.grey.shade900,
+        color: _backgroundColor,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        children: [
+          DatePickerMonthSelector(
+            label: DateFormat("MMMM yyyy").format(_referenceDate),
+            onPreviousPressed: _goToPreviousMonth,
+            isNextEnabled: _canGoToNextMonth,
+            onNextPressed: _goToNextMonth,
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: DatePickerDayGrid(
+              month: _referenceDate,
+              onDaySelected: widget.onDaySelected,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -315,6 +357,461 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
     return _brightness == Brightness.light //
         ? Colors.black.withValues(alpha: 0.10)
         : Colors.white.withValues(alpha: 0.10);
+  }
+
+  Color get _backgroundColor {
+    return _brightness == Brightness.light //
+        ? Colors.white
+        : Colors.grey.shade900;
+  }
+}
+
+class DatePickerMonthSelector extends StatelessWidget {
+  const DatePickerMonthSelector({
+    super.key,
+    required this.label,
+    required this.onPreviousPressed,
+    this.isNextEnabled = true,
+    required this.onNextPressed,
+  });
+
+  final String label;
+
+  final VoidCallback onPreviousPressed;
+
+  final bool isNextEnabled;
+  final VoidCallback onNextPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = LucidBrightness.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          DatePickerArrowButton.previous(
+            onPressed: onPreviousPressed,
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: brightness == Brightness.light //
+                      ? Colors.grey.shade900
+                      : Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          DatePickerArrowButton.next(
+            isEnabled: isNextEnabled,
+            onPressed: onNextPressed,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DatePickerArrowButton extends StatefulWidget {
+  const DatePickerArrowButton.previous({
+    super.key,
+    this.focusNode,
+    this.isEnabled = true,
+    required this.onPressed,
+  }) : arrow = Icons.arrow_back_ios_new;
+
+  const DatePickerArrowButton.next({
+    super.key,
+    this.focusNode,
+    this.isEnabled = true,
+    required this.onPressed,
+  }) : arrow = Icons.arrow_forward_ios;
+
+  final FocusNode? focusNode;
+  final IconData arrow;
+  final bool isEnabled;
+  final VoidCallback onPressed;
+
+  @override
+  State<DatePickerArrowButton> createState() => _DatePickerArrowButtonState();
+}
+
+class _DatePickerArrowButtonState extends State<DatePickerArrowButton> {
+  var _brightness = Brightness.light;
+
+  late FocusNode _focusNode;
+  var _isHovering = false;
+  var _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _focusNode = widget.focusNode ?? FocusNode();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    _brightness = LucidBrightness.of(context);
+  }
+
+  @override
+  void didUpdateWidget(DatePickerArrowButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.focusNode != oldWidget.focusNode) {
+      if (oldWidget.focusNode == null) {
+        _focusNode.dispose();
+      }
+      _focusNode = widget.focusNode ?? FocusNode();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() {
+        _isPressed = true;
+      }),
+      onTapUp: (_) => setState(() {
+        _isPressed = false;
+
+        if (widget.isEnabled) {
+          widget.onPressed();
+        }
+      }),
+      onTapCancel: () => setState(() {
+        _isPressed = false;
+      }),
+      child: MouseRegion(
+        cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        onEnter: (_) => setState(() {
+          _isHovering = true;
+        }),
+        onExit: (_) => setState(() {
+          _isHovering = false;
+        }),
+        child: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            borderRadius: _sheetCornerRadius,
+            border: Border.all(color: _borderColor),
+            color: _backgroundColor,
+          ),
+          child: Center(
+            child: Icon(
+              widget.arrow,
+              size: 16,
+              color: _iconColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color get _iconColor {
+    return _brightness == Brightness.light //
+        ? widget.isEnabled
+            ? Colors.black
+            : Colors.black.withValues(alpha: 0.10)
+        : widget.isEnabled
+            ? Colors.white
+            : Colors.white.withValues(alpha: 0.10);
+  }
+
+  Color get _borderColor {
+    return _brightness == Brightness.light //
+        ? Colors.black.withValues(alpha: 0.10)
+        : Colors.white.withValues(alpha: 0.10);
+  }
+
+  Color get _backgroundColor {
+    if (_isPressed && widget.isEnabled) {
+      return _brightness == Brightness.light //
+          ? Colors.black.withValues(alpha: 0.10)
+          : Colors.white.withValues(alpha: 0.10);
+    }
+
+    if (_isHovering && widget.isEnabled) {
+      return _brightness == Brightness.light //
+          ? Colors.black.withValues(alpha: 0.03)
+          : Colors.white.withValues(alpha: 0.03);
+    }
+
+    return Colors.transparent;
+  }
+}
+
+class DatePickerDayGrid extends StatefulWidget {
+  const DatePickerDayGrid({
+    super.key,
+    required this.month,
+    required this.onDaySelected,
+  });
+
+  final DateTime month;
+
+  final void Function(DayOfYear day) onDaySelected;
+
+  @override
+  State<DatePickerDayGrid> createState() => _DatePickerDayGridState();
+}
+
+class _DatePickerDayGridState extends State<DatePickerDayGrid> {
+  @override
+  Widget build(BuildContext context) {
+    final referenceDate = widget.month;
+    var monthStart = DateTime(referenceDate.year, referenceDate.month, 1);
+
+    final rows = <List<Widget>>[];
+    var day = monthStart.subtract(Duration(days: monthStart.weekday));
+    for (int i = 0; i < 35; i += 1) {
+      final row = i ~/ 7;
+      if (row >= rows.length) {
+        rows.add(<Widget>[]);
+      }
+
+      final buttonDay = day;
+      rows[row].add(
+        DatePickerDayGridButton(
+          date: "${buttonDay.day}",
+          isEnabled: buttonDay.month == referenceDate.month,
+          onPressed: () {
+            print("Day picker grid button pressed. Calling widget onDaySelected");
+            widget.onDaySelected(
+              DayOfYear.ymd(buttonDay.year, buttonDay.month, buttonDay.day),
+            );
+          },
+        ),
+      );
+
+      day = day.add(const Duration(hours: 24));
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: DayAbbreviation.su()),
+            Expanded(child: DayAbbreviation.mo()),
+            Expanded(child: DayAbbreviation.tu()),
+            Expanded(child: DayAbbreviation.we()),
+            Expanded(child: DayAbbreviation.th()),
+            Expanded(child: DayAbbreviation.fr()),
+            Expanded(child: DayAbbreviation.sa()),
+          ],
+        ),
+        for (final row in rows) //
+          Row(
+            children: [
+              for (final day in row) //
+                Expanded(child: day),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class DayAbbreviation extends StatelessWidget {
+  const DayAbbreviation.su({
+    super.key,
+  }) : abbreviation = "Su";
+
+  const DayAbbreviation.mo({
+    super.key,
+  }) : abbreviation = "Mo";
+
+  const DayAbbreviation.tu({
+    super.key,
+  }) : abbreviation = "Tu";
+
+  const DayAbbreviation.we({
+    super.key,
+  }) : abbreviation = "We";
+
+  const DayAbbreviation.th({
+    super.key,
+  }) : abbreviation = "Th";
+
+  const DayAbbreviation.fr({
+    super.key,
+  }) : abbreviation = "Fr";
+
+  const DayAbbreviation.sa({
+    super.key,
+  }) : abbreviation = "Sa";
+
+  const DayAbbreviation({
+    super.key,
+    required this.abbreviation,
+  });
+
+  final String abbreviation;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = LucidBrightness.of(context);
+
+    return Text(
+      abbreviation,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: brightness == Brightness.light //
+            ? Colors.black.withValues(alpha: 0.5)
+            : Colors.white.withValues(alpha: 0.5),
+        fontSize: 14,
+      ),
+    );
+  }
+}
+
+class DatePickerDayGridButton extends StatefulWidget {
+  const DatePickerDayGridButton({
+    super.key,
+    this.focusNode,
+    required this.date,
+    this.isEnabled = true,
+    this.onPressed,
+  });
+
+  final FocusNode? focusNode;
+  final String date;
+  final bool isEnabled;
+  final VoidCallback? onPressed;
+
+  @override
+  State<DatePickerDayGridButton> createState() => _DatePickerDayGridButtonState();
+}
+
+class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
+  var _brightness = Brightness.light;
+
+  late FocusNode _focusNode;
+  var _isHovering = false;
+  var _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _focusNode = widget.focusNode ?? FocusNode();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    _brightness = LucidBrightness.of(context);
+  }
+
+  @override
+  void didUpdateWidget(DatePickerDayGridButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.focusNode != oldWidget.focusNode) {
+      if (oldWidget.focusNode == null) {
+        _focusNode.dispose();
+      }
+      _focusNode = widget.focusNode ?? FocusNode();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() {
+        _isPressed = true;
+      }),
+      onTapUp: (_) => setState(() {
+        _isPressed = false;
+
+        if (widget.isEnabled) {
+          widget.onPressed?.call();
+        }
+      }),
+      onTapCancel: () => setState(() {
+        _isPressed = false;
+      }),
+      child: MouseRegion(
+        cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        onEnter: (_) => setState(() {
+          _isHovering = true;
+        }),
+        onExit: (_) => setState(() {
+          _isHovering = false;
+        }),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            borderRadius: _sheetCornerRadius,
+            color: _backgroundColor,
+          ),
+          child: Center(
+            child: Text(
+              widget.date,
+              style: TextStyle(
+                color: _textColor,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color get _textColor {
+    return _brightness == Brightness.light //
+        ? widget.isEnabled
+            ? Colors.black
+            : Colors.black.withValues(alpha: 0.2)
+        : widget.isEnabled
+            ? Colors.white
+            : Colors.white.withValues(alpha: 0.2);
+  }
+
+  Color get _backgroundColor {
+    if (_isPressed && widget.isEnabled) {
+      return _brightness == Brightness.light //
+          ? Colors.black.withValues(alpha: 0.10)
+          : Colors.white.withValues(alpha: 0.10);
+    }
+
+    if (_isHovering && widget.isEnabled) {
+      return _brightness == Brightness.light //
+          ? Colors.black.withValues(alpha: 0.03)
+          : Colors.white.withValues(alpha: 0.03);
+    }
+
+    return Colors.transparent;
   }
 }
 
@@ -349,3 +846,5 @@ class DayOfYear {
   @override
   int get hashCode => year.hashCode ^ month.hashCode ^ day.hashCode;
 }
+
+final _sheetCornerRadius = BorderRadius.circular(4);

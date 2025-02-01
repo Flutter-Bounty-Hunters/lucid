@@ -5,10 +5,7 @@ import 'package:flutter/widgets.dart';
 /// An inherited widget that reports a desired visual brightness for its subtree.
 class LucidBrightness extends InheritedWidget {
   static Brightness of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LucidBrightness>()!.brightness;
-
-  static Brightness? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LucidBrightness>()?.brightness;
+      context.dependOnInheritedWidgetOfExactType<LucidBrightness>()?.brightness ?? Brightness.light;
 
   const LucidBrightness({
     super.key,
