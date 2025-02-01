@@ -12,7 +12,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lucid Demo',
-      home: const HomeScreen(),
+      builder: (context, child) {
+        if (child == null) {
+          return const SizedBox();
+        }
+
+        return TapToClearFocus(
+          child: child,
+        );
+      },
+      home: HomeScreen(),
     );
   }
 }
@@ -30,19 +39,54 @@ class _HomeScreenState extends State<HomeScreen> {
   DayOfYear? _selectedDay;
 
   @override
+  void initState() {
+    super.initState();
+
+    print("Initializing Focus listener...");
+    print(" - highlight mode: ${FocusManager.instance.highlightMode}");
+    print(" - highlight strategy: ${FocusManager.instance.highlightStrategy}");
+    FocusManager.instance.addListener(() {
+      // print("Focus change: ${FocusManager.instance.primaryFocus}");
+      _printFocusPath();
+    });
+  }
+
+  void _printFocusPath() {
+    FocusNode? currentFocus = FocusManager.instance.primaryFocus;
+    if (currentFocus == null) {
+      debugPrint("No widget has focus.");
+      return;
+    }
+
+    List<String> focusPath = [];
+    while (currentFocus != null) {
+      focusPath.add(currentFocus.debugLabel ?? "Unnamed FocusNode");
+      currentFocus = currentFocus.parent;
+    }
+
+    debugPrint("Focus Path: ${focusPath.reversed.join(" -> ")}");
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Row(
         children: [
           Expanded(
-            child: _buildDatePickerDemo(),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: _buildDatePickerDemo(),
+            ),
           ),
           Expanded(
             child: LucidBrightness(
               brightness: Brightness.dark,
               child: ColoredBox(
                 color: Colors.grey.shade900,
-                child: _buildDatePickerDemo(),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _buildDatePickerDemo(),
+                ),
               ),
             ),
           ),
@@ -52,20 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDatePickerDemo() {
-    print("Building date picker with selected date: $_selectedDay");
-    return Center(
-      child: SizedBox(
-        width: 300,
-        child: DatePicker(
-          selectedDate: _selectedDay,
-          hint: "Select date",
-          onDaySelected: (day) {
-            print("onDaySelected(): $day");
-            setState(() {
-              _selectedDay = day;
-            });
-          },
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 54),
+      child: DatePicker(
+        selectedDay: _selectedDay,
+        hint: "Select date",
+        onDaySelected: (day) {
+          print("onDaySelected(): $day");
+          setState(() {
+            _selectedDay = day;
+          });
+        },
       ),
     );
   }

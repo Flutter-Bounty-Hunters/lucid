@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:follow_the_leader/follow_the_leader.dart';
 import 'package:intl/intl.dart';
 import 'package:lucid/lucid.dart';
@@ -8,27 +9,30 @@ import 'package:lucid/lucid.dart';
 /// This widget displays a button. When the user clicks the button, a calendar
 /// popover appears, which lets the user select a specific day.
 ///
-/// The button displays the given [selectedDate], [hint] if no date is provided.
+/// The button displays the given [selectedDay], [hint] if no date is provided.
 ///
-/// It's the app's job to change [selectedDate] when the user selects a day.
+/// It's the app's job to change [selectedDay] when the user selects a day.
 ///
 /// When the user selects a day, that day is reported to [onDaySelected].
 class DatePicker extends StatefulWidget {
   const DatePicker({
     super.key,
-    this.selectedDate,
+    this.focusNode,
+    this.selectedDay,
     this.hint,
     required this.onDaySelected,
   });
 
-  /// The day of the year that's currently selected, or `null` to show a [hint].
-  final DayOfYear? selectedDate;
+  final FocusNode? focusNode;
 
-  /// The text shown when [selectedDate] is `null`.
+  /// The day of the year that's currently selected, or `null` to show a [hint].
+  final DayOfYear? selectedDay;
+
+  /// The text shown when [selectedDay] is `null`.
   final String? hint;
 
   /// Callback that's invoked when the user selects a different day.
-  final void Function(DayOfYear) onDaySelected;
+  final void Function(DayOfYear?) onDaySelected;
 
   @override
   State<DatePicker> createState() => _DatePickerState();
@@ -38,7 +42,42 @@ class _DatePickerState extends State<DatePicker> {
   final _buttonLeaderLink = LeaderLink();
   final _overlayController = OverlayPortalController();
 
-  void _toggleCalendar() {
+  late FocusNode _focusNode;
+  final _buttonFocusNode = FocusNode();
+  final _calendarFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker");
+  }
+
+  @override
+  void didUpdateWidget(DatePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.focusNode != oldWidget.focusNode) {
+      if (oldWidget.focusNode == null) {
+        _focusNode.dispose();
+      }
+      _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker");
+    }
+  }
+
+  @override
+  void dispose() {
+    _calendarFocusNode.dispose();
+    _buttonFocusNode.dispose();
+
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+
+    super.dispose();
+  }
+
+  void _toggleCalendar(ActivationActor actor) {
     if (_overlayController.isShowing) {
       _overlayController.hide();
     } else {
@@ -46,31 +85,85 @@ class _DatePickerState extends State<DatePicker> {
     }
   }
 
+  void _closeCalendar() {
+    _overlayController.hide();
+  }
+
+  void _onDaySelected(DayOfYear day) {
+    if (day == widget.selectedDay) {
+      // The user selected the day that's already selected. De-select it.
+      widget.onDaySelected(null);
+      return;
+    }
+
+    widget.onDaySelected(day);
+  }
+
   @override
   Widget build(BuildContext context) {
     // FIXME: We should be able to use a BuildInOrder here but the BuildInOrder
     //        is maxing out vertical space, similar to a column set to max. File
     //        an issue with repro steps in follow_the_leader.
-    return OverlayPortal(
-      controller: _overlayController,
-      overlayChildBuilder: (overlayContext) {
-        return Follower.withOffset(
-          link: _buttonLeaderLink,
-          offset: Offset(0, -8),
-          leaderAnchor: Alignment.topLeft,
-          followerAnchor: Alignment.bottomLeft,
-          child: DatePickerCalendar(
-            selectedDate: widget.selectedDate,
-            onDaySelected: widget.onDaySelected,
+    return FocusTraversalGroup(
+      child: Focus(
+        focusNode: _focusNode,
+        canRequestFocus: false,
+        debugLabel: "Date Picker",
+        child: OverlayPortal(
+          controller: _overlayController,
+          overlayChildBuilder: (overlayContext) {
+            return Follower.withAligner(
+              link: _buttonLeaderLink,
+              aligner: FunctionalAligner(
+                delegate: (Rect globalLeaderRect, Size followerSize) {
+                  if (globalLeaderRect.top > followerSize.height + 8) {
+                    return FollowerAlignment(
+                      leaderAnchor: Alignment.topCenter,
+                      followerAnchor: Alignment.bottomCenter,
+                      followerOffset: Offset(0, -8),
+                    );
+                  } else {
+                    return FollowerAlignment(
+                      leaderAnchor: Alignment.bottomCenter,
+                      followerAnchor: Alignment.topCenter,
+                      followerOffset: Offset(0, 8),
+                    );
+                  }
+                },
+              ),
+              boundary: ScreenFollowerBoundary(
+                screenSize: MediaQuery.sizeOf(context),
+                devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+              ),
+              child: KeyDismissable(
+                dismiss: _closeCalendar,
+                child: ListenableBuilder(
+                    listenable: _buttonLeaderLink,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: _buttonLeaderLink.leaderSize?.width.clamp(250, 600) ?? 300,
+                        child: DatePickerCalendar(
+                          focusNode: _calendarFocusNode,
+                          selectedDay: widget.selectedDay,
+                          autofocus: _focusNode.hasFocus,
+                          // ^ Only autofocus a calendar day button if we're currently in
+                          //   focus mode, and we have the focus.
+                          onDaySelected: _onDaySelected,
+                        ),
+                      );
+                    }),
+              ),
+            );
+          },
+          child: Leader(
+            link: _buttonLeaderLink,
+            child: DatePickerButton(
+              focusNode: _buttonFocusNode,
+              selectedDate: widget.selectedDay,
+              hint: widget.hint,
+              toggleCalendar: _toggleCalendar,
+            ),
           ),
-        );
-      },
-      child: Leader(
-        link: _buttonLeaderLink,
-        child: DatePickerButton(
-          selectedDate: widget.selectedDate,
-          hint: widget.hint,
-          onPressed: _toggleCalendar,
         ),
       ),
     );
@@ -83,7 +176,7 @@ class DatePickerButton extends StatefulWidget {
     this.focusNode,
     this.selectedDate,
     this.hint,
-    required this.onPressed,
+    required this.toggleCalendar,
   });
 
   final FocusNode? focusNode;
@@ -94,7 +187,9 @@ class DatePickerButton extends StatefulWidget {
   /// The text shown when [selectedDate] is `null`.
   final String? hint;
 
-  final VoidCallback onPressed;
+  /// Tells the client that this button wants to toggle the display of the
+  /// month calendar popover.
+  final void Function(ActivationActor) toggleCalendar;
 
   @override
   State<DatePickerButton> createState() => _DatePickerButtonState();
@@ -113,7 +208,7 @@ class _DatePickerButtonState extends State<DatePickerButton> {
   void initState() {
     super.initState();
 
-    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Button");
   }
 
   @override
@@ -131,7 +226,7 @@ class _DatePickerButtonState extends State<DatePickerButton> {
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();
       }
-      _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Button");
     }
   }
 
@@ -146,49 +241,58 @@ class _DatePickerButtonState extends State<DatePickerButton> {
 
   @override
   Widget build(BuildContext context) {
-    print("Building button with selected date: ${widget.selectedDate}");
-
-    return Focus(
-      focusNode: _focusNode,
-      child: MouseRegion(
-        cursor: _isHovering ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() {
-          _isHovering = true;
-        }),
-        onExit: (_) => setState(() {
-          _isHovering = false;
-        }),
-        child: GestureDetector(
-          onTapDown: (_) => setState(() {
-            _isPressed = true;
+    return KeyActivatable(
+      activate: () => widget.toggleCalendar(ActivationActor.keyboard),
+      child: Focus(
+        focusNode: _focusNode,
+        debugLabel: "Date Picker Button",
+        child: MouseRegion(
+          cursor: _isHovering ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          onEnter: (_) => setState(() {
+            _isHovering = true;
           }),
-          onTapUp: (_) => setState(() {
-            _isPressed = false;
-            widget.onPressed();
+          onExit: (_) => setState(() {
+            _isHovering = false;
           }),
-          onTapCancel: () => setState(() {
-            _isPressed = false;
-          }),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: _sheetCornerRadius,
-              border: Border.all(color: _borderColor),
-              color: _backgroundColor,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: _iconColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _selectedDateText,
-                    style: TextStyle(
-                      color: _labelColor,
-                    ),
+          child: GestureDetector(
+            onTapDown: (_) => setState(() {
+              _isPressed = true;
+            }),
+            onTapUp: (_) => setState(() {
+              _isPressed = false;
+              widget.toggleCalendar(ActivationActor.tap);
+            }),
+            onTapCancel: () => setState(() {
+              _isPressed = false;
+            }),
+            child: ListenableBuilder(
+              listenable: _focusNode,
+              builder: (context, child) {
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: _sheetCornerRadius,
+                    border: Border.all(color: _borderColor),
+                    color: _backgroundColor,
                   ),
-                ),
-              ],
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: _iconColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedDateText,
+                          style: TextStyle(
+                            color: _labelColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -209,7 +313,7 @@ class _DatePickerButtonState extends State<DatePickerButton> {
   }
 
   Color get _borderColor {
-    if (_focusNode.hasPrimaryFocus) {
+    if (_focusNode.hasFocus) {
       return Colors.lightBlue;
     }
 
@@ -231,7 +335,9 @@ class _DatePickerButtonState extends State<DatePickerButton> {
           : Colors.white.withValues(alpha: 0.03);
     }
 
-    return Colors.transparent;
+    return _brightness == Brightness.light //
+        ? Colors.white
+        : Colors.grey.shade900;
   }
 
   String get _selectedDateText => widget.selectedDate != null //
@@ -243,14 +349,20 @@ class DatePickerCalendar extends StatefulWidget {
   const DatePickerCalendar({
     super.key,
     this.focusNode,
-    this.selectedDate,
+    this.selectedDay,
+    this.autofocus = false,
     required this.onDaySelected,
   });
 
   final FocusNode? focusNode;
 
   /// The day of the year that's currently selected, or `null`.
-  final DayOfYear? selectedDate;
+  final DayOfYear? selectedDay;
+
+  /// Whether to immediately give focus to a day button upon widget initialization.
+  ///
+  /// When `false`, no focus will be automatically given to anything in this calendar.
+  final bool autofocus;
 
   /// Callback that's invoked when the user selects a different day.
   final void Function(DayOfYear) onDaySelected;
@@ -263,14 +375,24 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
   var _brightness = Brightness.light;
 
   late FocusNode _focusNode;
+  DayOfYear? _focusedDay;
 
-  var _referenceDate = DateTime.now();
+  late DateTime _referenceDate;
 
   @override
   void initState() {
     super.initState();
 
-    _focusNode = widget.focusNode ?? FocusNode();
+    _referenceDate = widget.selectedDay != null //
+        ? widget.selectedDay!.toDateTime()
+        : DateTime.now();
+
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Calendar");
+    if (widget.autofocus) {
+      // We were given a FocusNode and it's already focused. Ensure that
+      // we begin with the selected day button focused.
+      _focusedDay = DayOfYear.fromDateTime(_referenceDate);
+    }
   }
 
   @override
@@ -288,7 +410,7 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();
       }
-      _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Calendar");
     }
   }
 
@@ -324,31 +446,38 @@ class _DatePickerCalendarState extends State<DatePickerCalendar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 300,
-      height: 250,
-      decoration: BoxDecoration(
-        borderRadius: _sheetCornerRadius,
-        border: Border.all(color: _borderColor),
-        color: _backgroundColor,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        children: [
-          DatePickerMonthSelector(
-            label: DateFormat("MMMM yyyy").format(_referenceDate),
-            onPreviousPressed: _goToPreviousMonth,
-            isNextEnabled: _canGoToNextMonth,
-            onNextPressed: _goToNextMonth,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: DatePickerDayGrid(
-              month: _referenceDate,
-              onDaySelected: widget.onDaySelected,
+    return FocusScope(
+      child: FocusTraversalGroup(
+        child: Focus(
+          focusNode: _focusNode,
+          debugLabel: "Date Picker Calendar",
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: _sheetCornerRadius,
+              border: Border.all(color: _borderColor),
+              color: _backgroundColor,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DatePickerMonthSelector(
+                  label: DateFormat("MMMM yyyy").format(_referenceDate),
+                  onPreviousPressed: _goToPreviousMonth,
+                  isNextEnabled: _canGoToNextMonth,
+                  onNextPressed: _goToNextMonth,
+                ),
+                const SizedBox(height: 8),
+                DatePickerDayGrid(
+                  month: _referenceDate,
+                  selectedDay: widget.selectedDay,
+                  autofocusDay: _focusedDay,
+                  onDaySelected: widget.onDaySelected,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -451,7 +580,7 @@ class _DatePickerArrowButtonState extends State<DatePickerArrowButton> {
   void initState() {
     super.initState();
 
-    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Arrow");
   }
 
   @override
@@ -469,7 +598,7 @@ class _DatePickerArrowButtonState extends State<DatePickerArrowButton> {
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();
       }
-      _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Arrow");
     }
   }
 
@@ -484,42 +613,52 @@ class _DatePickerArrowButtonState extends State<DatePickerArrowButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() {
-        _isPressed = true;
-      }),
-      onTapUp: (_) => setState(() {
-        _isPressed = false;
+    return KeyActivatable(
+      activate: widget.isEnabled ? widget.onPressed : null,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() {
+          _isPressed = true;
+        }),
+        onTapUp: (_) => setState(() {
+          _isPressed = false;
 
-        if (widget.isEnabled) {
-          widget.onPressed();
-        }
-      }),
-      onTapCancel: () => setState(() {
-        _isPressed = false;
-      }),
-      child: MouseRegion(
-        cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() {
-          _isHovering = true;
+          if (widget.isEnabled) {
+            widget.onPressed();
+          }
         }),
-        onExit: (_) => setState(() {
-          _isHovering = false;
+        onTapCancel: () => setState(() {
+          _isPressed = false;
         }),
-        child: Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            borderRadius: _sheetCornerRadius,
-            border: Border.all(color: _borderColor),
-            color: _backgroundColor,
-          ),
-          child: Center(
-            child: Icon(
-              widget.arrow,
-              size: 16,
-              color: _iconColor,
-            ),
+        child: MouseRegion(
+          cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          onEnter: (_) => setState(() {
+            _isHovering = true;
+          }),
+          onExit: (_) => setState(() {
+            _isHovering = false;
+          }),
+          child: Focus(
+            focusNode: _focusNode,
+            child: ListenableBuilder(
+                listenable: _focusNode,
+                builder: (context, child) {
+                  return Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      borderRadius: _sheetCornerRadius,
+                      border: Border.all(color: _borderColor),
+                      color: _backgroundColor,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        widget.arrow,
+                        size: 16,
+                        color: _iconColor,
+                      ),
+                    ),
+                  );
+                }),
           ),
         ),
       ),
@@ -537,6 +676,10 @@ class _DatePickerArrowButtonState extends State<DatePickerArrowButton> {
   }
 
   Color get _borderColor {
+    if (_focusNode.hasPrimaryFocus) {
+      return Colors.lightBlue;
+    }
+
     return _brightness == Brightness.light //
         ? Colors.black.withValues(alpha: 0.10)
         : Colors.white.withValues(alpha: 0.10);
@@ -563,10 +706,16 @@ class DatePickerDayGrid extends StatefulWidget {
   const DatePickerDayGrid({
     super.key,
     required this.month,
+    this.selectedDay,
+    this.autofocusDay,
     required this.onDaySelected,
   });
 
   final DateTime month;
+
+  final DayOfYear? selectedDay;
+
+  final DayOfYear? autofocusDay;
 
   final void Function(DayOfYear day) onDaySelected;
 
@@ -578,23 +727,33 @@ class _DatePickerDayGridState extends State<DatePickerDayGrid> {
   @override
   Widget build(BuildContext context) {
     final referenceDate = widget.month;
-    var monthStart = DateTime(referenceDate.year, referenceDate.month, 1);
+    var monthStart = DateTime(referenceDate.year, referenceDate.month, 1, 12);
+    // ^ Use the middle of the day to prevent any edge effects as we repeatedly
+    //   add day after day.
 
     final rows = <List<Widget>>[];
-    var day = monthStart.subtract(Duration(days: monthStart.weekday));
-    for (int i = 0; i < 35; i += 1) {
+    final daysBeforeMonthStart = monthStart.weekday % 7;
+    final calendarRowCount = ((daysBeforeMonthStart + monthStart.daysInMonth) / 7).ceil();
+    final dayCount = calendarRowCount * 7;
+
+    final today = DayOfYear.today();
+    var day = monthStart.subtract(Duration(days: monthStart.weekday % 7));
+    for (int i = 0; i < dayCount; i += 1) {
       final row = i ~/ 7;
       if (row >= rows.length) {
         rows.add(<Widget>[]);
       }
 
-      final buttonDay = day;
+      final buttonDate = day;
+      final buttonDay = DayOfYear.fromDateTime(buttonDate);
       rows[row].add(
         DatePickerDayGridButton(
-          date: "${buttonDay.day}",
-          isEnabled: buttonDay.month == referenceDate.month,
+          date: "${buttonDate.day}",
+          isEnabled: buttonDate.month == referenceDate.month,
+          isSelected: buttonDay == widget.selectedDay,
+          isToday: buttonDay == today,
+          autofocus: buttonDay == widget.autofocusDay,
           onPressed: () {
-            print("Day picker grid button pressed. Calling widget onDaySelected");
             widget.onDaySelected(
               DayOfYear.ymd(buttonDay.year, buttonDay.month, buttonDay.day),
             );
@@ -689,12 +848,18 @@ class DatePickerDayGridButton extends StatefulWidget {
     this.focusNode,
     required this.date,
     this.isEnabled = true,
+    this.isSelected = false,
+    this.isToday = false,
+    this.autofocus = false,
     this.onPressed,
   });
 
   final FocusNode? focusNode;
   final String date;
   final bool isEnabled;
+  final bool isSelected;
+  final bool isToday;
+  final bool autofocus;
   final VoidCallback? onPressed;
 
   @override
@@ -712,7 +877,11 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
   void initState() {
     super.initState();
 
-    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Day (${widget.date})");
+
+    if (widget.autofocus) {
+      _focusNode.requestFocus();
+    }
   }
 
   @override
@@ -730,7 +899,7 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();
       }
-      _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Day");
     }
   }
 
@@ -745,42 +914,55 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() {
-        _isPressed = true;
-      }),
-      onTapUp: (_) => setState(() {
-        _isPressed = false;
+    return KeyActivatable(
+      activate: widget.onPressed,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() {
+          _isPressed = true;
+        }),
+        onTapUp: (_) => setState(() {
+          _isPressed = false;
 
-        if (widget.isEnabled) {
-          widget.onPressed?.call();
-        }
-      }),
-      onTapCancel: () => setState(() {
-        _isPressed = false;
-      }),
-      child: MouseRegion(
-        cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() {
-          _isHovering = true;
+          if (widget.isEnabled) {
+            widget.onPressed?.call();
+          }
         }),
-        onExit: (_) => setState(() {
-          _isHovering = false;
+        onTapCancel: () => setState(() {
+          _isPressed = false;
         }),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            borderRadius: _sheetCornerRadius,
-            color: _backgroundColor,
-          ),
-          child: Center(
-            child: Text(
-              widget.date,
-              style: TextStyle(
-                color: _textColor,
-                fontSize: 14,
-              ),
+        child: MouseRegion(
+          cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          onEnter: (_) => setState(() {
+            _isHovering = true;
+          }),
+          onExit: (_) => setState(() {
+            _isHovering = false;
+          }),
+          child: Focus(
+            focusNode: _focusNode,
+            canRequestFocus: widget.isEnabled,
+            child: ListenableBuilder(
+              listenable: _focusNode,
+              builder: (context, child) {
+                return Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    borderRadius: _sheetCornerRadius,
+                    border: Border.all(color: _borderColor),
+                    color: _backgroundColor,
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.date,
+                      style: TextStyle(
+                        color: _textColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -789,6 +971,12 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
   }
 
   Color get _textColor {
+    if (widget.isSelected) {
+      return _brightness == Brightness.light //
+          ? Colors.white
+          : Colors.black;
+    }
+
     return _brightness == Brightness.light //
         ? widget.isEnabled
             ? Colors.black
@@ -798,7 +986,33 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
             : Colors.white.withValues(alpha: 0.2);
   }
 
+  Color get _borderColor {
+    if (_focusNode.hasPrimaryFocus) {
+      return Colors.lightBlue;
+    }
+
+    return Colors.transparent;
+  }
+
   Color get _backgroundColor {
+    if (widget.isSelected) {
+      if (_isPressed) {
+        return _brightness == Brightness.light //
+            ? Colors.black.withValues(alpha: 0.90)
+            : Colors.white.withValues(alpha: 0.90);
+      }
+
+      if (_isHovering) {
+        return _brightness == Brightness.light //
+            ? Colors.black.withValues(alpha: 0.75)
+            : Colors.white.withValues(alpha: 0.75);
+      }
+
+      return _brightness == Brightness.light //
+          ? Colors.black
+          : Colors.white;
+    }
+
     if (_isPressed && widget.isEnabled) {
       return _brightness == Brightness.light //
           ? Colors.black.withValues(alpha: 0.10)
@@ -811,12 +1025,26 @@ class _DatePickerDayGridButtonState extends State<DatePickerDayGridButton> {
           : Colors.white.withValues(alpha: 0.03);
     }
 
+    if (widget.isToday) {
+      return _brightness == Brightness.light //
+          ? Colors.black.withValues(alpha: 0.1)
+          : Colors.white.withValues(alpha: 0.1);
+    }
+
     return Colors.transparent;
   }
 }
 
 /// A day of a year, as specified by a [year], [month], and [day].
 class DayOfYear {
+  factory DayOfYear.fromDateTime(DateTime dateTime) {
+    return DayOfYear.ymd(dateTime.year, dateTime.month, dateTime.day);
+  }
+
+  factory DayOfYear.today() {
+    return DayOfYear.fromDateTime(DateTime.now());
+  }
+
   const DayOfYear.ymd(this.year, this.month, this.day);
 
   final int year;
@@ -848,3 +1076,21 @@ class DayOfYear {
 }
 
 final _sheetCornerRadius = BorderRadius.circular(4);
+
+enum ActivationActor {
+  /// The user tapped to activate.
+  tap,
+
+  /// The user activated through a key press.
+  keyboard;
+}
+
+extension on DateTime {
+  int get daysInMonth {
+    var firstDayOfNextMonth = (month < 12) //
+        ? DateTime(year, month + 1, 1)
+        : DateTime(year + 1, 1, 1);
+
+    return firstDayOfNextMonth.subtract(Duration(days: 1)).day;
+  }
+}
