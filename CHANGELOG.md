@@ -1,3 +1,4 @@
-## 0.0.1
+## 0.0.1 - Feb 2, 2025
 
-* TODO: Describe initial release.
+Initial Release: 
+ * ADDED: `DatePicker`.
