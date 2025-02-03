@@ -17,9 +17,13 @@ class MyApp extends StatelessWidget {
           return const SizedBox();
         }
 
-        return TapToClearFocus(
-          child: child,
-        );
+        return child;
+        // TODO: Add a handle for ESC - if ESC is unhandled all the way at the
+        //       root of the widget tree, and there's a focus, then remove the
+        //       focus.
+        // return TapToClearFocus(
+        //   child: child,
+        // );
       },
       home: HomeScreen(),
     );
@@ -64,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       currentFocus = currentFocus.parent;
     }
 
-    debugPrint("Focus Path: ${focusPath.reversed.join(" -> ")}");
+    // debugPrint("Focus Path: ${focusPath.reversed.join(" -> ")}");
   }
 
   @override

@@ -20,3 +20,7 @@ class LucidBrightness extends InheritedWidget {
     return brightness != oldWidget.brightness;
   }
 }
+
+/// The border radius for a standard rectangle in Lucid, e.g., button background,
+/// popover background, etc.
+final sheetCornerRadius = BorderRadius.circular(4);
