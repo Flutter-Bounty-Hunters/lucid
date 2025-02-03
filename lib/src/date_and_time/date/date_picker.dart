@@ -22,6 +22,7 @@ class DatePicker extends StatefulWidget {
     this.focusNode,
     this.selectedDay,
     this.hint,
+    this.calendarPreferredSide = DatePickerCalendarSide.above,
     required this.onDaySelected,
   });
 
@@ -33,11 +34,19 @@ class DatePicker extends StatefulWidget {
   /// The text shown when [selectedDay] is `null`.
   final String? hint;
 
+  /// The preferred side that the calendar should appear - defaults to "above".
+  final DatePickerCalendarSide calendarPreferredSide;
+
   /// Callback that's invoked when the user selects a different day.
   final void Function(DayOfYear?) onDaySelected;
 
   @override
   State<DatePicker> createState() => _DatePickerState();
+}
+
+enum DatePickerCalendarSide {
+  above,
+  below;
 }
 
 class _DatePickerState extends State<DatePicker> {
@@ -118,7 +127,20 @@ class _DatePickerState extends State<DatePicker> {
               link: _buttonLeaderLink,
               aligner: FunctionalAligner(
                 delegate: (Rect globalLeaderRect, Size followerSize) {
-                  if (globalLeaderRect.top > followerSize.height + 8) {
+                  late final DatePickerCalendarSide actualSide;
+                  switch (widget.calendarPreferredSide) {
+                    case DatePickerCalendarSide.above:
+                      actualSide = globalLeaderRect.top > followerSize.height + 8
+                          ? DatePickerCalendarSide.above
+                          : DatePickerCalendarSide.below;
+                    case DatePickerCalendarSide.below:
+                      final screenHeight = MediaQuery.sizeOf(context).height;
+                      actualSide = globalLeaderRect.bottom + followerSize.height + 8 <= screenHeight
+                          ? DatePickerCalendarSide.below
+                          : DatePickerCalendarSide.above;
+                  }
+
+                  if (actualSide == DatePickerCalendarSide.above) {
                     return FollowerAlignment(
                       leaderAnchor: Alignment.topCenter,
                       followerAnchor: Alignment.bottomCenter,
