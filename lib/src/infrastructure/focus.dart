@@ -78,7 +78,7 @@ class KeyActivatable extends StatelessWidget {
     required this.child,
   });
 
-  final LogicalKeyboardKey activateKey;
+  final LogicalKeyboardKey? activateKey;
   final VoidCallback? activate;
   final Widget child;
 
@@ -86,8 +86,8 @@ class KeyActivatable extends StatelessWidget {
   Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: {
-        if (activate != null) //
-          LogicalKeySet(activateKey): const ActivateIntent(),
+        if (activate != null && activateKey != null) //
+          LogicalKeySet(activateKey!): const ActivateIntent(),
       },
       child: Actions(
         actions: {

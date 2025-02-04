@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucid/src/date_and_time/date/dates.dart';
 import 'package:lucid/src/infrastructure/focus.dart';
+import 'package:lucid/src/infrastructure/sheets.dart';
 import 'package:lucid/src/theme.dart';
 
 /// A calendar for a single month, which displays the name and year of the month,
@@ -38,8 +39,6 @@ class MonthlyCalendar extends StatefulWidget {
 }
 
 class _MonthlyCalendarState extends State<MonthlyCalendar> {
-  var _brightness = Brightness.light;
-
   late FocusNode _focusNode;
   DayOfYear? _focusedDay;
 
@@ -62,13 +61,6 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
       // we begin with the selected day button focused.
       _focusedDay = DayOfYear.fromDateTime(_referenceDate);
     }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    _brightness = LucidBrightness.of(context);
   }
 
   @override
@@ -132,20 +124,12 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
   Widget build(BuildContext context) {
     return MonthlyCalendarFocusModelProvider(
       child: FocusScope(
-        // TODO: Give this scope a "focusedChild" which is the child that should
-        //       receive focus when this scope receives focus.
         child: FocusTraversalGroup(
           policy: const MonthlyCalendarFocusTraversalPolicy(),
           child: Focus(
             focusNode: _focusNode,
             debugLabel: "Date Picker Calendar",
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: sheetCornerRadius,
-                border: Border.all(color: _borderColor),
-                color: _backgroundColor,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Sheet(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -171,18 +155,6 @@ class _MonthlyCalendarState extends State<MonthlyCalendar> {
         ),
       ),
     );
-  }
-
-  Color get _borderColor {
-    return _brightness == Brightness.light //
-        ? Colors.black.withValues(alpha: 0.10)
-        : Colors.white.withValues(alpha: 0.10);
-  }
-
-  Color get _backgroundColor {
-    return _brightness == Brightness.light //
-        ? Colors.white
-        : Colors.grey.shade900;
   }
 }
 
@@ -939,24 +911,13 @@ class MonthlyCalendarArrowButton extends StatefulWidget {
 }
 
 class _MonthlyCalendarArrowButtonState extends State<MonthlyCalendarArrowButton> {
-  var _brightness = Brightness.light;
-
   late FocusNode _focusNode;
-  var _isHovering = false;
-  var _isPressed = false;
 
   @override
   void initState() {
     super.initState();
 
     _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Arrow");
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    _brightness = LucidBrightness.of(context);
   }
 
   @override
@@ -982,92 +943,32 @@ class _MonthlyCalendarArrowButtonState extends State<MonthlyCalendarArrowButton>
 
   @override
   Widget build(BuildContext context) {
-    return KeyActivatable(
-      activate: widget.isEnabled ? widget.onPressed : null,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() {
-          _isPressed = true;
-        }),
-        onTapUp: (_) => setState(() {
-          _isPressed = false;
+    final brightness = LucidBrightness.of(context);
 
-          if (widget.isEnabled) {
-            widget.onPressed();
-          }
-        }),
-        onTapCancel: () => setState(() {
-          _isPressed = false;
-        }),
-        child: MouseRegion(
-          cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          onEnter: (_) => setState(() {
-            _isHovering = true;
-          }),
-          onExit: (_) => setState(() {
-            _isHovering = false;
-          }),
-          child: Focus(
-            focusNode: widget.isEnabled ? _focusNode : null,
-            child: ListenableBuilder(
-                listenable: _focusNode,
-                builder: (context, child) {
-                  return Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      borderRadius: sheetCornerRadius,
-                      border: Border.all(color: _borderColor),
-                      color: _backgroundColor,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        widget.arrow,
-                        size: 16,
-                        color: _iconColor,
-                      ),
-                    ),
-                  );
-                }),
-          ),
+    return ButtonSheet(
+      focusNode: _focusNode,
+      focusNodeDebugLabel: "Date Picker Arrow",
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      isEnabled: widget.isEnabled,
+      onActivated: widget.onPressed,
+      child: Center(
+        child: Icon(
+          widget.arrow,
+          size: 16,
+          color: _iconColor(brightness),
         ),
       ),
     );
   }
 
-  Color get _iconColor {
-    return _brightness == Brightness.light //
+  Color _iconColor(Brightness brightness) {
+    return brightness == Brightness.light //
         ? widget.isEnabled
             ? Colors.black
             : Colors.black.withValues(alpha: 0.10)
         : widget.isEnabled
             ? Colors.white
             : Colors.white.withValues(alpha: 0.10);
-  }
-
-  Color get _borderColor {
-    if (_focusNode.hasPrimaryFocus) {
-      return Colors.lightBlue;
-    }
-
-    return _brightness == Brightness.light //
-        ? Colors.black.withValues(alpha: 0.10)
-        : Colors.white.withValues(alpha: 0.10);
-  }
-
-  Color get _backgroundColor {
-    if (_isPressed && widget.isEnabled) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.10)
-          : Colors.white.withValues(alpha: 0.10);
-    }
-
-    if (_isHovering && widget.isEnabled) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.03)
-          : Colors.white.withValues(alpha: 0.03);
-    }
-
-    return Colors.transparent;
   }
 }
 
@@ -1333,76 +1234,105 @@ class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridBut
 
   @override
   Widget build(BuildContext context) {
-    return KeyActivatable(
-      activate: widget.onPressed,
-      child: GestureDetector(
-        onTapDown: (_) => setState(() {
-          _isPressed = true;
-        }),
-        onTapUp: (_) => setState(() {
-          _isPressed = false;
-
-          if (widget.isEnabled) {
-            widget.onPressed?.call();
-          }
-        }),
-        onTapCancel: () => setState(() {
-          _isPressed = false;
-        }),
-        child: MouseRegion(
-          cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          onEnter: (_) => setState(() {
-            _isHovering = true;
-          }),
-          onExit: (_) => setState(() {
-            _isHovering = false;
-          }),
-          child: Focus(
-            focusNode: _focusNode,
-            canRequestFocus: widget.isEnabled,
-            child: ListenableBuilder(
-              listenable: _focusNode,
-              builder: (context, child) {
-                return Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    borderRadius: sheetCornerRadius,
-                    border: Border.all(color: _borderColor),
-                    color: _backgroundColor,
-                  ),
-                  child: Center(
-                    child: Text(
-                      widget.date,
-                      style: TextStyle(
-                        color: _textColor,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                );
-              },
+    return SizedBox.square(
+      dimension: 32,
+      child: InvisibleSelectableButtonSheet(
+        focusNode: _focusNode,
+        padding: EdgeInsets.zero,
+        isEnabled: widget.isEnabled,
+        isSelected: widget.isSelected,
+        backgroundColorOverride: widget.isToday //
+            ? _todayBackground(_brightness)
+            : null,
+        onActivated: widget.onPressed,
+        child: Center(
+          child: Text(
+            widget.date,
+            style: TextStyle(
+              color: _textColor(_brightness),
+              fontSize: 14,
             ),
           ),
         ),
       ),
     );
+
+    // return KeyActivatable(
+    //   activate: widget.onPressed,
+    //   child: GestureDetector(
+    //     onTapDown: (_) => setState(() {
+    //       _isPressed = true;
+    //     }),
+    //     onTapUp: (_) => setState(() {
+    //       _isPressed = false;
+    //
+    //       if (widget.isEnabled) {
+    //         widget.onPressed?.call();
+    //       }
+    //     }),
+    //     onTapCancel: () => setState(() {
+    //       _isPressed = false;
+    //     }),
+    //     child: MouseRegion(
+    //       cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+    //       onEnter: (_) => setState(() {
+    //         _isHovering = true;
+    //       }),
+    //       onExit: (_) => setState(() {
+    //         _isHovering = false;
+    //       }),
+    //       child: Focus(
+    //         focusNode: _focusNode,
+    //         canRequestFocus: widget.isEnabled,
+    //         child: ListenableBuilder(
+    //           listenable: _focusNode,
+    //           builder: (context, child) {
+    //             return Container(
+    //               width: 32,
+    //               height: 32,
+    //               decoration: BoxDecoration(
+    //                 borderRadius: sheetCornerRadius,
+    //                 border: Border.all(color: _borderColor),
+    //                 color: _backgroundColor,
+    //               ),
+    //               child: Center(
+    //                 child: Text(
+    //                   widget.date,
+    //                   style: TextStyle(
+    //                     color: _textColor,
+    //                     fontSize: 14,
+    //                   ),
+    //                 ),
+    //               ),
+    //             );
+    //           },
+    //         ),
+    //       ),
+    //     ),
+    //   ),
+    // );
   }
 
-  Color get _textColor {
+  Color _textColor(Brightness brightness) {
     if (widget.isSelected) {
-      return _brightness == Brightness.light //
+      return brightness == Brightness.light //
           ? Colors.white
           : Colors.black;
     }
 
-    return _brightness == Brightness.light //
+    return brightness == Brightness.light //
         ? widget.isEnabled
             ? Colors.black
             : Colors.black.withValues(alpha: 0.2)
         : widget.isEnabled
             ? Colors.white
             : Colors.white.withValues(alpha: 0.2);
+  }
+
+  Color _todayBackground(Brightness brightness) {
+    return _brightness == Brightness.light //
+        ? Colors.black.withValues(alpha: 0.1)
+        : Colors.white.withValues(alpha: 0.1);
   }
 
   Color get _borderColor {

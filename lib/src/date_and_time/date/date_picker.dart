@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:follow_the_leader/follow_the_leader.dart';
 import 'package:intl/intl.dart';
-import 'package:lucid/lucid.dart';
 import 'package:lucid/src/date_and_time/date/dates.dart';
 import 'package:lucid/src/date_and_time/date/monthly_calendar.dart';
+import 'package:lucid/src/infrastructure/focus.dart';
+import 'package:lucid/src/infrastructure/sheets.dart';
+import 'package:lucid/src/theme.dart';
 
 /// A widget for selecting a calendar date.
 ///
@@ -225,8 +227,6 @@ class _DatePickerButtonState extends State<DatePickerButton> {
   var _brightness = Brightness.light;
 
   late FocusNode _focusNode;
-  var _isHovering = false;
-  var _isPressed = false;
 
   @override
   void initState() {
@@ -267,58 +267,25 @@ class _DatePickerButtonState extends State<DatePickerButton> {
   Widget build(BuildContext context) {
     return KeyActivatable(
       activate: () => widget.toggleCalendar(ActivationActor.keyboard),
-      child: Focus(
+      child: ButtonSheet(
         focusNode: _focusNode,
-        debugLabel: "Date Picker Button",
-        child: MouseRegion(
-          cursor: _isHovering ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          onEnter: (_) => setState(() {
-            _isHovering = true;
-          }),
-          onExit: (_) => setState(() {
-            _isHovering = false;
-          }),
-          child: GestureDetector(
-            onTapDown: (_) => setState(() {
-              _isPressed = true;
-            }),
-            onTapUp: (_) => setState(() {
-              _isPressed = false;
-              widget.toggleCalendar(ActivationActor.tap);
-            }),
-            onTapCancel: () => setState(() {
-              _isPressed = false;
-            }),
-            child: ListenableBuilder(
-              listenable: _focusNode,
-              builder: (context, child) {
-                return Container(
-                  decoration: BoxDecoration(
-                    borderRadius: sheetCornerRadius,
-                    border: Border.all(color: _borderColor),
-                    color: _backgroundColor,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 16, color: _iconColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedDateText,
-                          style: TextStyle(
-                            color: _labelColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+        focusNodeDebugLabel: "Date Picker Button",
+        onActivated: () => widget.toggleCalendar(ActivationActor.tap),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today, size: 16, color: _iconColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _selectedDateText,
+                style: TextStyle(
+                  color: _labelColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -334,34 +301,6 @@ class _DatePickerButtonState extends State<DatePickerButton> {
     return _brightness == Brightness.light //
         ? Colors.black
         : Colors.white;
-  }
-
-  Color get _borderColor {
-    if (_focusNode.hasFocus) {
-      return Colors.lightBlue;
-    }
-
-    return _brightness == Brightness.light //
-        ? Colors.black.withValues(alpha: 0.10)
-        : Colors.white.withValues(alpha: 0.10);
-  }
-
-  Color get _backgroundColor {
-    if (_isPressed) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.10)
-          : Colors.white.withValues(alpha: 0.10);
-    }
-
-    if (_isHovering) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.03)
-          : Colors.white.withValues(alpha: 0.03);
-    }
-
-    return _brightness == Brightness.light //
-        ? Colors.white
-        : Colors.grey.shade900;
   }
 
   String get _selectedDateText => widget.selectedDate != null //
