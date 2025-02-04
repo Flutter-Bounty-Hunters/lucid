@@ -20,38 +20,27 @@ class TapToClearFocus extends StatefulWidget {
 
 class _TapToClearFocusState extends State<TapToClearFocus> {
   final _focusScopeNode = FocusScopeNode(debugLabel: "TapToClearFocus");
-  // final _focusNode = FocusNode();
 
   @override
   void dispose() {
     _focusScopeNode.dispose();
-    // _focusNode.dispose();
     super.dispose();
   }
 
   void _removeFocus() {
-    print("REMOVING FOCUS");
-
-    // Move primary focus to this widget, which thereby removes focus from
+    // Move primary focus to this scope node, which thereby removes focus from
     // all subtree widgets.
-    // _focusNode.requestFocus();
     _focusScopeNode.requestScopeFocus();
   }
 
   @override
   Widget build(BuildContext context) {
     return FocusScope(
-      // focusNode: _focusNode,
-      // Trying a focus scope node to see if we can avoid eventually completely losing
-      // focus traversal with "tab".
       node: _focusScopeNode,
       debugLabel: "TapToClearFocus",
       child: ListenableBuilder(
         listenable: _focusScopeNode,
         builder: (context, child) {
-          print(
-            "Building tap to clear focus widget - has focus? ${_focusScopeNode.hasFocus}, has primary? ${_focusScopeNode.hasPrimaryFocus}",
-          );
           return Listener(
             onPointerUp: _focusScopeNode.hasFocus && !_focusScopeNode.hasPrimaryFocus //
                 ? (_) => _removeFocus()

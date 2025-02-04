@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucid/src/date_and_time/date/dates.dart';
-import 'package:lucid/src/infrastructure/focus.dart';
+import 'package:lucid/src/infrastructure/logging.dart';
 import 'package:lucid/src/infrastructure/sheets.dart';
 import 'package:lucid/src/theme.dart';
 
@@ -310,66 +310,25 @@ class MonthlyCalendarFocusTraversalPolicy extends FocusTraversalPolicy {
   });
 
   @override
-  FocusNode? findFirstFocus(FocusNode currentNode, {bool ignoreCurrentFocus = false}) {
-    print("findFirstFocus() - ignoreCurrentFocus: $ignoreCurrentFocus");
-    print(" - currentNode: $currentNode");
-
-    return super.findFirstFocus(currentNode, ignoreCurrentFocus: ignoreCurrentFocus);
-  }
-
-  @override
-  FocusNode findLastFocus(FocusNode currentNode, {bool ignoreCurrentFocus = false}) {
-    print("findLastFocus() - ignoreCurrentFocus: $ignoreCurrentFocus");
-    print(' - currentNode: $currentNode');
-
-    return super.findLastFocus(currentNode, ignoreCurrentFocus: ignoreCurrentFocus);
-  }
-
-  @override
-  bool next(FocusNode currentNode) {
-    print("next() - $currentNode");
-    return super.next(currentNode);
-  }
-
-  @override
-  bool previous(FocusNode currentNode) {
-    print("previous() - $currentNode");
-    return super.previous(currentNode);
-  }
-
-  @override
-  void changedScope({FocusNode? node, FocusScopeNode? oldScope}) {
-    print("changedScope():");
-    print(" - node: $node");
-    print(" - old scope: $oldScope");
-    super.changedScope(node: node, oldScope: oldScope);
-  }
-
-  @override
-  void invalidateScopeData(FocusScopeNode node) {
-    print("invalidateScopeData() - node: $node");
-    super.invalidateScopeData(node);
-  }
-
-  @override
   FocusNode? findFirstFocusInDirection(FocusNode currentNode, TraversalDirection direction) {
-    print("findFirstFocusInDirection() - direction: $direction");
     if (currentNode.context == null) {
-      print(" - WARNING: currentNode has no BuildContext - $currentNode");
+      LucidLogs.monthlyCalendar.warning(
+        "WARNING: Tried to find first focus node in direction ($direction) but the currentNode has no BuildContext - $currentNode",
+      );
       return null;
     }
     final model = MonthlyCalendarFocusModelProvider.of(currentNode.context!);
 
     // TODO: implement findFirstFocusInDirection
-    print(" - Returning first day: ${model.firstDay}");
     return model.firstDay;
   }
 
   @override
   bool inDirection(FocusNode currentNode, TraversalDirection direction) {
-    print("inDirection() - direction: $direction");
     if (currentNode.context == null) {
-      print(" - WARNING: currentNode has no BuildContext - $currentNode");
+      LucidLogs.monthlyCalendar.warning(
+        "WARNING: Tried to find next focus node in direction ($direction), but the currentNode has no BuildContext - $currentNode",
+      );
       return false;
     }
     final model = MonthlyCalendarFocusModelProvider.of(currentNode.context!);
@@ -590,9 +549,7 @@ class MonthlyCalendarFocusTraversalPolicy extends FocusTraversalPolicy {
         return false;
       case TraversalDirection.down:
         if (row == model.lastRow) {
-          print("Trying to move down beyond last row");
           var dayAtTop = model.dayFocusNodeAt(row: 0, column: column);
-          print(" - day in row 0 directly above: $dayAtTop");
           if (dayAtTop != null) {
             // We found a day in the top row directly above the current selection.
             // Move focus there.
@@ -604,7 +561,6 @@ class MonthlyCalendarFocusTraversalPolicy extends FocusTraversalPolicy {
           // this can happen is if the month doesn't start on the first day of the
           // week. In that case, find the same column in the 2nd row.
           dayAtTop = model.dayFocusNodeAt(row: 1, column: column);
-          print(" - day in row 1 directly above: $dayAtTop");
           if (dayAtTop != null) {
             // We found a day in the second row directly above the current selection.
             // Move focus there.
@@ -703,10 +659,11 @@ class MonthlyCalendarFocusTraversalPolicy extends FocusTraversalPolicy {
 
   @override
   Iterable<FocusNode> sortDescendants(Iterable<FocusNode> descendants, FocusNode currentNode) {
-    print("sortDescendants()");
     if (currentNode.context == null) {
       // We can't access our traversal model. We don't know what to do.
-      print("ERROR: Tried to sortDescendants for traversal but the currentNode has no BuildContext: $currentNode");
+      LucidLogs.monthlyCalendar.warning(
+        "ERROR: Tried to sortDescendants for traversal but the currentNode has no BuildContext: $currentNode",
+      );
       return descendants;
     }
 
@@ -1187,11 +1144,7 @@ class MonthlyCalendarDayGridButton extends StatefulWidget {
 }
 
 class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridButton> {
-  var _brightness = Brightness.light;
-
   late FocusNode _focusNode;
-  var _isHovering = false;
-  var _isPressed = false;
 
   @override
   void initState() {
@@ -1202,13 +1155,6 @@ class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridBut
     if (widget.autofocus) {
       _focusNode.requestFocus();
     }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    _brightness = LucidBrightness.of(context);
   }
 
   @override
@@ -1234,6 +1180,8 @@ class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridBut
 
   @override
   Widget build(BuildContext context) {
+    final brightness = LucidBrightness.of(context);
+
     return SizedBox.square(
       dimension: 32,
       child: InvisibleSelectableButtonSheet(
@@ -1242,75 +1190,20 @@ class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridBut
         isEnabled: widget.isEnabled,
         isSelected: widget.isSelected,
         backgroundColorOverride: widget.isToday //
-            ? _todayBackground(_brightness)
+            ? _todayBackground(brightness)
             : null,
         onActivated: widget.onPressed,
         child: Center(
           child: Text(
             widget.date,
             style: TextStyle(
-              color: _textColor(_brightness),
+              color: _textColor(brightness),
               fontSize: 14,
             ),
           ),
         ),
       ),
     );
-
-    // return KeyActivatable(
-    //   activate: widget.onPressed,
-    //   child: GestureDetector(
-    //     onTapDown: (_) => setState(() {
-    //       _isPressed = true;
-    //     }),
-    //     onTapUp: (_) => setState(() {
-    //       _isPressed = false;
-    //
-    //       if (widget.isEnabled) {
-    //         widget.onPressed?.call();
-    //       }
-    //     }),
-    //     onTapCancel: () => setState(() {
-    //       _isPressed = false;
-    //     }),
-    //     child: MouseRegion(
-    //       cursor: widget.isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-    //       onEnter: (_) => setState(() {
-    //         _isHovering = true;
-    //       }),
-    //       onExit: (_) => setState(() {
-    //         _isHovering = false;
-    //       }),
-    //       child: Focus(
-    //         focusNode: _focusNode,
-    //         canRequestFocus: widget.isEnabled,
-    //         child: ListenableBuilder(
-    //           listenable: _focusNode,
-    //           builder: (context, child) {
-    //             return Container(
-    //               width: 32,
-    //               height: 32,
-    //               decoration: BoxDecoration(
-    //                 borderRadius: sheetCornerRadius,
-    //                 border: Border.all(color: _borderColor),
-    //                 color: _backgroundColor,
-    //               ),
-    //               child: Center(
-    //                 child: Text(
-    //                   widget.date,
-    //                   style: TextStyle(
-    //                     color: _textColor,
-    //                     fontSize: 14,
-    //                   ),
-    //                 ),
-    //               ),
-    //             );
-    //           },
-    //         ),
-    //       ),
-    //     ),
-    //   ),
-    // );
   }
 
   Color _textColor(Brightness brightness) {
@@ -1330,56 +1223,8 @@ class _MonthlyCalendarDayGridButtonState extends State<MonthlyCalendarDayGridBut
   }
 
   Color _todayBackground(Brightness brightness) {
-    return _brightness == Brightness.light //
+    return brightness == Brightness.light //
         ? Colors.black.withValues(alpha: 0.1)
         : Colors.white.withValues(alpha: 0.1);
-  }
-
-  Color get _borderColor {
-    if (_focusNode.hasPrimaryFocus) {
-      return Colors.lightBlue;
-    }
-
-    return Colors.transparent;
-  }
-
-  Color get _backgroundColor {
-    if (widget.isSelected) {
-      if (_isPressed) {
-        return _brightness == Brightness.light //
-            ? Colors.black.withValues(alpha: 0.90)
-            : Colors.white.withValues(alpha: 0.90);
-      }
-
-      if (_isHovering) {
-        return _brightness == Brightness.light //
-            ? Colors.black.withValues(alpha: 0.75)
-            : Colors.white.withValues(alpha: 0.75);
-      }
-
-      return _brightness == Brightness.light //
-          ? Colors.black
-          : Colors.white;
-    }
-
-    if (_isPressed && widget.isEnabled) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.10)
-          : Colors.white.withValues(alpha: 0.10);
-    }
-
-    if (_isHovering && widget.isEnabled) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.03)
-          : Colors.white.withValues(alpha: 0.03);
-    }
-
-    if (widget.isToday) {
-      return _brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.1)
-          : Colors.white.withValues(alpha: 0.1);
-    }
-
-    return Colors.transparent;
   }
 }

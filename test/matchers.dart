@@ -260,7 +260,6 @@ class IsSameWidthAs extends Matcher {
   @override
   bool matches(item, Map<dynamic, dynamic> matchState) {
     if (item is! Finder) {
-      print("Expected Finder for widget to compare. Actual: $item.");
       return false;
     }
 
@@ -309,7 +308,6 @@ class HasWidth extends Matcher {
   @override
   bool matches(item, Map<dynamic, dynamic> matchState) {
     if (item is! Finder) {
-      print("Expected Finder for widget to compare. Actual: $item.");
       return false;
     }
 
