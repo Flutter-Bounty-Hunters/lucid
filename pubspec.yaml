@@ -23,6 +23,7 @@ dev_dependencies:
   
   flutter_test_robots: ^0.0.24
   flutter_test_runners: ^0.0.4
+  golden_bricks: ^1.0.0
 
 #flutter:
 

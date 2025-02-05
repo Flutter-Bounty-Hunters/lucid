@@ -26,6 +26,7 @@ class MyApp extends StatelessWidget {
         // );
       },
       home: HomeScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -77,9 +78,22 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Row(
         children: [
           Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: _buildDatePickerDemo(),
+            child: Column(
+              spacing: 8,
+              children: [
+                _buildDatePickerDemo(),
+                Spacer(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 8,
+                  children: [
+                    _buildTimePickerDemo(TimeResolution.hour),
+                    _buildTimePickerDemo(TimeResolution.minute),
+                    _buildTimePickerDemo(TimeResolution.second),
+                  ],
+                ),
+                const SizedBox(height: 48),
+              ],
             ),
           ),
           Expanded(
@@ -87,9 +101,22 @@ class _HomeScreenState extends State<HomeScreen> {
               brightness: Brightness.dark,
               child: ColoredBox(
                 color: Colors.grey.shade900,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: _buildDatePickerDemo(),
+                child: Column(
+                  spacing: 8,
+                  children: [
+                    const SizedBox(height: 48),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 8,
+                      children: [
+                        _buildTimePickerDemo(TimeResolution.second),
+                        _buildTimePickerDemo(TimeResolution.minute),
+                        _buildTimePickerDemo(TimeResolution.hour),
+                      ],
+                    ),
+                    Spacer(),
+                    _buildDatePickerDemo(),
+                  ],
                 ),
               ),
             ),
@@ -112,6 +139,43 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
       ),
+    );
+  }
+
+  Widget _buildTimePickerDemo(TimeResolution resolution) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 54),
+      child: _TimePickerDemo(
+        resolution: resolution,
+      ),
+    );
+  }
+}
+
+class _TimePickerDemo extends StatefulWidget {
+  const _TimePickerDemo({
+    this.resolution,
+  });
+
+  final TimeResolution? resolution;
+
+  @override
+  State<_TimePickerDemo> createState() => _TimePickerDemoState();
+}
+
+class _TimePickerDemoState extends State<_TimePickerDemo> {
+  LocalTime? _time;
+
+  @override
+  Widget build(BuildContext context) {
+    return TimePicker(
+      value: _time,
+      timeResolution: widget.resolution ?? TimeResolution.second,
+      onNewTimeRequested: (newTime) {
+        setState(() {
+          _time = newTime;
+        });
+      },
     );
   }
 }

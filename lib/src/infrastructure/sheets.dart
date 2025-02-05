@@ -58,7 +58,7 @@ class _ButtonSheetState extends State<ButtonSheet> {
   void initState() {
     super.initState();
 
-    _focusNode = widget.focusNode ?? FocusNode(debugLabel: "Date Picker Button");
+    _focusNode = widget.focusNode ?? FocusNode(debugLabel: widget.focusNodeDebugLabel);
   }
 
   @override
@@ -137,30 +137,32 @@ class _ButtonSheetState extends State<ButtonSheet> {
 
   Color _borderColor(Brightness brightness) {
     if (_focusNode.hasFocus) {
-      return Colors.lightBlue;
+      return brightness == Brightness.light //
+          ? BrightTheme.borderFocusColor
+          : DarkTheme.borderFocusColor;
     }
 
     return brightness == Brightness.light //
-        ? Colors.black.withValues(alpha: 0.10)
-        : Colors.white.withValues(alpha: 0.10);
+        ? BrightTheme.borderIdleColor
+        : DarkTheme.borderIdleColor;
   }
 
   Color _backgroundColor(Brightness brightness) {
     if (_isPressed && widget.isEnabled) {
       return brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.10)
-          : Colors.white.withValues(alpha: 0.10);
+          ? BrightTheme.backgroundPressedColor
+          : DarkTheme.backgroundPressedColor;
     }
 
     if (_isHovering && widget.isEnabled) {
       return brightness == Brightness.light //
-          ? Colors.black.withValues(alpha: 0.03)
-          : Colors.white.withValues(alpha: 0.03);
+          ? BrightTheme.backgroundHoverColor
+          : DarkTheme.backgroundHoverColor;
     }
 
     return brightness == Brightness.light //
-        ? Colors.white
-        : Colors.grey.shade900;
+        ? BrightTheme.backgroundIdleColor
+        : DarkTheme.backgroundIdleColor;
   }
 }
 
