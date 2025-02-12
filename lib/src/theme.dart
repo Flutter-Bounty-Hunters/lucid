@@ -1,11 +1,48 @@
 import 'package:flutter/material.dart';
 
 /// An inherited widget that reports a desired visual brightness for its subtree.
-class LucidBrightness extends InheritedWidget {
+class LucidBrightness extends StatefulWidget {
   static Brightness of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LucidBrightness>()?.brightness ?? Brightness.light;
+      context.dependOnInheritedWidgetOfExactType<InheritedLucidBrightness>()?.brightness ?? Brightness.light;
 
   const LucidBrightness({
+    super.key,
+    required this.brightness,
+    required this.child,
+  });
+
+  final Brightness brightness;
+  final Widget child;
+
+  @override
+  State<LucidBrightness> createState() => _LucidBrightnessState();
+}
+
+class _LucidBrightnessState extends State<LucidBrightness> {
+  @override
+  Widget build(BuildContext context) {
+    return InheritedLucidBrightness(
+      brightness: widget.brightness,
+      child: DefaultTextStyle(
+        style: TextStyle(
+          color: _textColor(widget.brightness),
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+
+  Color _textColor(Brightness brightness) {
+    return switch (brightness) {
+      Brightness.light => Colors.black,
+      Brightness.dark => Colors.white,
+    };
+  }
+}
+
+/// An inherited widget that reports a desired visual brightness for its subtree.
+class InheritedLucidBrightness extends InheritedWidget {
+  const InheritedLucidBrightness({
     super.key,
     required this.brightness,
     required super.child,
@@ -14,7 +51,7 @@ class LucidBrightness extends InheritedWidget {
   final Brightness brightness;
 
   @override
-  bool updateShouldNotify(LucidBrightness oldWidget) {
+  bool updateShouldNotify(InheritedLucidBrightness oldWidget) {
     return brightness != oldWidget.brightness;
   }
 }
@@ -31,6 +68,9 @@ class BrightTheme {
   static final backgroundHoverColor = Colors.black.withValues(alpha: 0.03);
   static final backgroundPressedColor = Colors.black.withValues(alpha: 0.10);
 
+  static final textColor = Colors.black;
+  static final hintColor = Colors.black.withValues(alpha: 0.5);
+
   const BrightTheme._();
 }
 
@@ -41,6 +81,9 @@ class DarkTheme {
   static final backgroundIdleColor = Colors.grey.shade900;
   static final backgroundHoverColor = Colors.white.withValues(alpha: 0.03);
   static final backgroundPressedColor = Colors.white.withValues(alpha: 0.10);
+
+  static final textColor = Colors.white;
+  static final hintColor = Colors.white.withValues(alpha: 0.5);
 
   const DarkTheme._();
 }
