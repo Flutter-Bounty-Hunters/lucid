@@ -368,7 +368,7 @@ class _InvisibleSelectableButtonSheetState extends State<InvisibleSelectableButt
   }
 }
 
-/// A rectangular widget with a background color and a border, which adapts
+/// A rounded rectangle widget with a background color and a border, which adapts
 /// to the current app brightness.
 class Sheet extends StatelessWidget {
   const Sheet({
@@ -410,3 +410,56 @@ class Sheet extends StatelessWidget {
 }
 
 const defaultSheetPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
+class Pane extends StatelessWidget {
+  const Pane({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = LucidBrightness.of(context);
+
+    return Container(
+      color: _backgroundColor(brightness),
+      child: child,
+    );
+  }
+
+  Color _backgroundColor(Brightness brightness) {
+    return brightness == Brightness.light //
+        ? Colors.white
+        : Colors.grey.shade900;
+  }
+}
+
+class Divider extends StatelessWidget {
+  const Divider.horizontal({super.key}) : direction = DividerDirection.horizontal;
+
+  const Divider.vertical({super.key}) : direction = DividerDirection.vertical;
+
+  final DividerDirection direction;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (direction) {
+      DividerDirection.horizontal => Container(height: 1, color: _color(context)),
+      DividerDirection.vertical => Container(width: 1, color: _color(context)),
+    };
+  }
+
+  Color _color(BuildContext context) {
+    return switch (LucidBrightness.of(context)) {
+      Brightness.light => BrightTheme.borderIdleColor,
+      Brightness.dark => DarkTheme.borderIdleColor,
+    };
+  }
+}
+
+enum DividerDirection {
+  horizontal,
+  vertical;
+}
