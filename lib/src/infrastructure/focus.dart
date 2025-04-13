@@ -1,6 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Catches an unhandled ESCAPE key press, and when caught, clears the
+/// current primary focus.
+class EscapeToClearFocus extends StatelessWidget {
+  const EscapeToClearFocus({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.escape): ClearFocusIntent(),
+      },
+      child: Actions(
+        actions: {
+          ClearFocusIntent: CallbackAction<ClearFocusIntent>(
+            onInvoke: (ClearFocusIntent intent) {
+              final root = FocusManager.instance.rootScope;
+              if (!root.hasPrimaryFocus) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              }
+
+              return null;
+            },
+          ),
+        },
+        child: child,
+      ),
+    );
+  }
+}
+
+class ClearFocusIntent extends Intent {
+  const ClearFocusIntent();
+}
+
 /// Widget that, when something in the app has primary focus, adds a tap handler
 /// that clears all focus when tapped.
 ///

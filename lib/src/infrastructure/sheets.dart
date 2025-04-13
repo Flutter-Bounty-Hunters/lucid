@@ -4,7 +4,55 @@ import 'package:lucid/src/infrastructure/focus.dart';
 
 import 'package:lucid/src/theme.dart';
 
-/// A rectangular widget intended to server as the background of a button.
+/// A button sheet with display modes for hover, active, and disabled.
+class ActivatableButtonSheet extends StatefulWidget {
+  const ActivatableButtonSheet({
+    super.key,
+    this.focusNode,
+    this.focusNodeDebugLabel,
+    this.padding = defaultSheetPadding,
+    this.isEnabled = true,
+    this.isActive = false,
+    this.activationKey = LogicalKeyboardKey.enter,
+    this.onActivated,
+    required this.child,
+  });
+
+  final FocusNode? focusNode;
+  final String? focusNodeDebugLabel;
+
+  final EdgeInsets padding;
+
+  /// Whether this sheet should visually respond to hover and press, and
+  /// report [onActivated] when pressed.
+  final bool isEnabled;
+
+  /// Whether this sheet is currently active, e.g., a play button that is
+  /// currently playing.
+  final bool isActive;
+
+  /// An (optional) key that, when pressed, calls [onActivated].
+  final LogicalKeyboardKey? activationKey;
+
+  /// Callback that's invoked when the user activates this sheet, either by
+  /// tapping on it, or by pressing the [activationKey] when focused.
+  final VoidCallback? onActivated;
+
+  final Widget child;
+
+  @override
+  State<ActivatableButtonSheet> createState() => _ActivatableButtonSheetState();
+}
+
+class _ActivatableButtonSheetState extends State<ActivatableButtonSheet> {
+  @override
+  Widget build(BuildContext context) {
+    // TODO: sheet
+    return widget.child;
+  }
+}
+
+/// A rectangular widget intended to serve as the background of a button.
 ///
 /// This sheet always displays a background color and a border.
 ///
@@ -118,13 +166,14 @@ class _ButtonSheetState extends State<ButtonSheet> {
             child: ListenableBuilder(
               listenable: _focusNode,
               builder: (context, child) {
-                return Container(
+                return AnimatedContainer(
                   decoration: BoxDecoration(
                     borderRadius: sheetCornerRadius,
                     border: Border.all(color: _borderColor(brightness)),
                     color: _backgroundColor(brightness),
                   ),
                   padding: widget.padding,
+                  duration: _changeDuration,
                   child: widget.child,
                 );
               },
@@ -163,6 +212,18 @@ class _ButtonSheetState extends State<ButtonSheet> {
     return brightness == Brightness.light //
         ? BrightTheme.backgroundIdleColor
         : DarkTheme.backgroundIdleColor;
+  }
+
+  Duration get _changeDuration {
+    if (_isPressed && widget.isEnabled) {
+      return Duration.zero;
+    }
+
+    if (_isHovering && widget.isEnabled) {
+      return Duration.zero;
+    }
+
+    return const Duration(milliseconds: 250);
   }
 }
 
@@ -304,13 +365,14 @@ class _InvisibleSelectableButtonSheetState extends State<InvisibleSelectableButt
             child: ListenableBuilder(
               listenable: _focusNode,
               builder: (context, child) {
-                return Container(
+                return AnimatedContainer(
                   decoration: BoxDecoration(
                     borderRadius: sheetCornerRadius,
                     border: Border.all(color: _borderColor(brightness)),
                     color: _backgroundColor(brightness),
                   ),
                   padding: widget.padding,
+                  duration: const Duration(milliseconds: 250),
                   child: widget.child,
                 );
               },
@@ -385,13 +447,14 @@ class Sheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = LucidBrightness.of(context);
 
-    return Container(
+    return AnimatedContainer(
       decoration: BoxDecoration(
         borderRadius: sheetCornerRadius,
         border: Border.all(color: _borderColor(brightness)),
         color: _backgroundColor(brightness),
       ),
       padding: padding,
+      duration: const Duration(milliseconds: 250),
       child: child,
     );
   }
@@ -404,62 +467,9 @@ class Sheet extends StatelessWidget {
 
   Color _backgroundColor(Brightness brightness) {
     return brightness == Brightness.light //
-        ? Colors.white
-        : Colors.grey.shade900;
+        ? BrightTheme.backgroundIdleColor
+        : DarkTheme.backgroundIdleColor;
   }
 }
 
 const defaultSheetPadding = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
-
-class Pane extends StatelessWidget {
-  const Pane({
-    super.key,
-    required this.child,
-  });
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = LucidBrightness.of(context);
-
-    return Container(
-      color: _backgroundColor(brightness),
-      child: child,
-    );
-  }
-
-  Color _backgroundColor(Brightness brightness) {
-    return brightness == Brightness.light //
-        ? Colors.white
-        : Colors.grey.shade900;
-  }
-}
-
-class Divider extends StatelessWidget {
-  const Divider.horizontal({super.key}) : direction = DividerDirection.horizontal;
-
-  const Divider.vertical({super.key}) : direction = DividerDirection.vertical;
-
-  final DividerDirection direction;
-
-  @override
-  Widget build(BuildContext context) {
-    return switch (direction) {
-      DividerDirection.horizontal => Container(height: 1, color: _color(context)),
-      DividerDirection.vertical => Container(width: 1, color: _color(context)),
-    };
-  }
-
-  Color _color(BuildContext context) {
-    return switch (LucidBrightness.of(context)) {
-      Brightness.light => BrightTheme.borderIdleColor,
-      Brightness.dark => DarkTheme.borderIdleColor,
-    };
-  }
-}
-
-enum DividerDirection {
-  horizontal,
-  vertical;
-}
