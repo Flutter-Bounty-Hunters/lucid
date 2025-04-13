@@ -1,0 +1,50 @@
+# Configuration for the package that this website documents.
+package:
+  name: lucid
+  title: Lucid
+  description: A desktop widget kit for Flutter
+  is_on_pub: true
+  
+  github:
+    url: https://github.com/Flutter-Bounty-Hunters/lucid
+    organization: Flutter-Bounty-Hunters
+    name: lucid
+  
+  discord: 
+  sponsorship: https://flutterbountyhunters.com
+
+# Configuration of the GitHub plugin for loading info about GitHub repositories.
+github:
+  contributors:
+    repositories:
+      
+      - { organization: Flutter-Bounty-Hunters, name: lucid }
+      
+
+# The default layout applied to all pages in this website.
+layout: layouts/docs_page.jinja
+
+# The global navigation manu for all documentation pages in this website.
+navigation:
+  
+  show_contributors: true
+  
+
+  items:
+    - title: Welcome
+      url: /
+
+    - title: "Get Started"
+      url: /get-started
+
+    - title: Components
+      tag: components
+      sortBy: navOrder
+
+    - title: Primitives
+      tag: primitives
+      sortBy: navOrder
+
+    - title: Contributing
+      tag: contributing
+      sortBy: navOrder

@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Docs Gallery: Date Picker" type="FlutterRunConfigurationType" factoryName="Flutter">
+    <option name="additionalArgs" value="--route components/date-picker" />
+    <option name="filePath" value="$PROJECT_DIR$/doc/website_gallery/lib/main.dart" />
+    <method v="2" />
+  </configuration>
+</component>
