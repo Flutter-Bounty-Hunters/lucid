@@ -15,12 +15,9 @@ Future<void> main(List<String> arguments) async {
     ..plugin(const PrettyUrlsPlugin())
     ..plugin(const RedirectsPlugin())
     ..plugin(const SassPlugin())
-    
     ..plugin(const PubPackagePlugin({
       "lucid",
     }))
-    
-    
     ..plugin(
       GitHubContributorsPlugin(
         // To load the contributors for a given GitHub package using credentials,
@@ -28,7 +25,6 @@ Future<void> main(List<String> arguments) async {
         authToken: Platform.environment["github_doc_website_token"],
       ),
     )
-    
     ..plugin(DraftingPlugin(
       showDrafts: arguments.contains("preview"),
     ));
