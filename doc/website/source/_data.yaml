@@ -21,8 +21,8 @@ github:
       - { organization: Flutter-Bounty-Hunters, name: lucid }
       
 # The path to use as the base for all absolute URLs. When writing an absolute URL
-# in HTML, you should write them as "{{ base_path }}the/file/path"
-base_path: /lucid/
+# in HTML, you should write them as "{{ basePath }}the/file/path"
+basePath: /lucid/
 
 # The default layout applied to all pages in this website.
 layout: layouts/docs_page.jinja
